@@ -71,7 +71,7 @@ use std::thread;
 
 fn main() {
     let mut client = api_alerts_client();
-    client.set_api_key("89fee423-7fd4-4dcb-a234-23c87fb11a8e".to_string());
+    client.set_api_key("".to_string());
 
     let handle = thread::spawn(move || {
         let result = client.send(
