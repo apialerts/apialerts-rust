@@ -3,24 +3,24 @@ use std::env;
 use std::error::Error;
 use ureq::{Agent, AgentBuilder};
 
-struct Client {
+pub struct ApiAlertsClient {
     api_key: String,
     agent: Agent,
 }
 
-impl Client {
-    fn new() -> Self {
-        Client {
+impl ApiAlertsClient {
+    pub fn new() -> Self {
+        ApiAlertsClient {
             api_key: env::var("APIALERTS_API_KEY").unwrap_or_default(),
             agent: AgentBuilder::new().build(),
         }
     }
 
-    fn set_api_key(&mut self, api_key: String) {
+    pub fn set_api_key(&mut self, api_key: String) {
         self.api_key = api_key;
     }
 
-    fn send(&self, message: &str, tags: &[String], link: &str) -> Result<(), Box<dyn Error>> {
+    pub fn send(&self, message: &str, tags: &[String], link: &str) -> Result<(), Box<dyn Error>> {
         if self.api_key.is_empty() {
             return Err("api key is missing".into());
         }
@@ -63,27 +63,17 @@ impl Client {
     }
 }
 
-fn api_alerts_client() -> Client {
-    Client::new()
+pub fn api_alerts_client() -> ApiAlertsClient {
+    ApiAlertsClient::new()
 }
 
-use std::thread;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-fn main() {
-    let mut client = api_alerts_client();
-    client.set_api_key("".to_string());
-
-    let handle = thread::spawn(move || {
-        let result = client.send(
-            "Rust Test Message",
-            &["Rust is awesome".to_string()],
-            "https://github.com/apialerts/",
-        );
-
-        if let Err(e) = result {
-            println!("Error: {}", e);
-        }
-    });
-
-    handle.join().unwrap();
+    #[test]
+    fn test_client_creation() {
+        let client = api_alerts_client();
+        assert!(client.api_key.is_empty());
+    }
 }
