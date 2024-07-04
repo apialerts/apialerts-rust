@@ -2,7 +2,7 @@
 name = "apialerts"
 version = "0.1.0"
 edition = "2021"
-authors = ["API Alerts <support@api-alerts.com>"]
+authors = ["API Alerts <support@apialerts.com>"]
 edition = "2021"
 description = "A Rust client for the API Alerts service"
 license = "MIT" 
