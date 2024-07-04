@@ -1,6 +1,6 @@
 ### API Alerts - Rust
 
-This is a simple API for sending alerts to the [API Alerts](https://api-alerts.com) service.
+This is a simple API for sending alerts to the [API Alerts](https://apialerts.com) service.
 
 ### Usage
 
