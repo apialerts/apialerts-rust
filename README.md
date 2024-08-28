@@ -43,6 +43,8 @@ async fn main() {
 
 You can also use the `update_config` and `update_api_key` methods to update the configuration of the client.
 
+ApiAlertsConfig is exposed as a struct, so you can easily create a new config with the default values.
+
 ```rust
 use apialerts::{event::ApiAlertsEvent, ApiAlertsClient};
 
