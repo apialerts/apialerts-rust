@@ -35,8 +35,9 @@ impl ApiAlertsClient {
         self
     }
 
-    pub async fn send_async(
+    pub async fn send_async_with_api_key(
         &self,
+        api_key: String,
         event: ApiAlertsEvent,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         if self.api_key.is_empty() {
@@ -53,7 +54,7 @@ impl ApiAlertsClient {
 
         let response = client
             .post(API_URL)
-            .header("Authorization", &format!("Bearer {}", self.api_key))
+            .header("Authorization", &format!("Bearer {}", api_key))
             .header("Content-Type", "application/json")
             .header("X-Integration", X_INTEGRATION)
             .header("X-Version", X_VERSION)
@@ -80,7 +81,23 @@ impl ApiAlertsClient {
         }
     }
 
+    pub fn send_with_api_key(
+        &self,
+        api_key: String,
+        event: ApiAlertsEvent,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+        block_on(self.send_async_with_api_key(api_key, event))
+    }
+
     pub fn send(&self, event: ApiAlertsEvent) -> Result<(), Box<dyn Error + Send + Sync>> {
-        block_on(self.send_async(event))
+        block_on(self.send_async_with_api_key(self.api_key.clone(), event))
+    }
+
+    pub async fn send_async(
+        &self,
+        event: ApiAlertsEvent,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        self.send_async_with_api_key(self.api_key.clone(), event)
+            .await
     }
 }
