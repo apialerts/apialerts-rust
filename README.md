@@ -2,27 +2,78 @@
 
 This is a simple API for sending alerts to the [API Alerts](https://apialerts.com) service.
 
+### Installation
+
+Add this to your `Cargo.toml`:
+
+```toml
+[dependencies]
+apialerts = "1.0.0"
+```
+
 ### Usage
 
 ```rust
-extern crate api_alerts;
+use apialerts::{event::ApiAlertsEvent, ApiAlertsClient};
 
-use apialerts::api_alerts_client;
+#[tokio::main]
+async fn main() {
+    let client = ApiAlertsClient::new("{API-KEY}".to_string());
 
-fn main() {
-    let mut client = api_alerts_client();
+    let event = ApiAlertsEvent::new(
+        "rust channel".to_string(),
+        "I've caught the rust bug".to_string(),
+    );
 
-    // Set API key (you might want to use an environment variable in practice)
-    client.set_api_key("{{API_KEY}}".to_string());
-
-    // Test sending an alert
-    let message = "Test alert from Rust library";
-    let tags = vec!["test".to_string(), "rust".to_string()];
-    let link = "https://example.com";
-
-    match client.send(message, &tags, link) {
-        Ok(()) => println!("Alert sent successfully"),
-        Err(e) => eprintln!("Failed to send alert: {}", e),
+    // Blocking - using futures
+    match client.send(event) {
+        Ok(_) => {}
+        Err(e) => println!("Error sending alert: {:?}", e),
     }
+
+    // OR
+
+    // Async - using async-std
+    match client.send_async(event).await {
+        Ok(_) => {}
+        Err(e) => println!("Error sending alert: {:?}", e),
+    }
+}
+```
+
+You can also use the `update_config` and `update_api_key` methods to update the configuration of the client.
+
+ApiAlertsConfig is exposed as a struct, so you can easily create a new config with the default values.
+
+```rust
+use apialerts::{event::ApiAlertsEvent, ApiAlertsClient};
+
+#[tokio::main]
+async fn main() {
+    let client = ApiAlertsClient::new("{API-KEY}".to_string())
+        .update_config(ApiAlertsConfig::new_default_config())
+        .update_api_key("{API-KEY}".to_string());
+
+    //...
+}
+```
+
+You can also set the tags and links on the alert event.
+
+```rust
+use apialerts::{event::ApiAlertsEvent, ApiAlertsClient};
+
+#[tokio::main]
+async fn main() {
+    //...
+
+    let event = ApiAlertsEvent::new(
+        "rust channel".to_string(),
+        "I've caught the rust bug".to_string(),
+    )
+    .set_tags(vec!["rust", "bug".to_string()])
+    .set_links(vec!["https://github.com/apialerts/apialerts-rust".to_string()]);
+
+    //...
 }
 ```

@@ -1,6 +1,6 @@
 [package]
 name = "apialerts"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 authors = ["API Alerts <support@apialerts.com>"]
 description = "A Rust client for the API Alerts service"
@@ -10,6 +10,7 @@ keywords = ["api", "alerts", "notification"]
 categories = ["api-bindings", "web-programming"]
 
 [dependencies]
-serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-ureq = { version = "2.6", features = ["json"] }
+reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"] }
+async-std = { version = "1.0", features = ["attributes"] }
+futures = "0.3"
