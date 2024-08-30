@@ -15,7 +15,7 @@ pub struct ApiAlertsClient {
 
 pub const API_URL: &str = "https://api.apialerts.com/event";
 pub const X_INTEGRATION: &str = "rust";
-pub const X_VERSION: &str = "2.0.0";
+pub const X_VERSION: &str = "1.0.0";
 
 impl ApiAlertsClient {
     pub fn new(api_key: String) -> Self {
