@@ -8,7 +8,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-apialerts = "2.0.0"
+apialerts = "1.0.0"
 ```
 
 ### Usage
