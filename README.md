@@ -1,4 +1,4 @@
-### API Alerts - Rust
+# apialerts-rust
 
 This is a simple API for sending alerts to the [API Alerts](https://apialerts.com) service.
 
