@@ -1,10 +1,6 @@
-# apialerts-rust
+# API Alerts • Rust Client
 
-This is a simple API for sending alerts to the [API Alerts](https://apialerts.com) service.
-
-Rust client for the [apialerts.com](https://apialerts.com/) platform
-
-[Docs](https://apialerts.com/docs/rust) • [GitHub](https://github.com/apialerts/apialerts-rust) • [Crates](https://crates.io/crates/apialerts)
+[GitHub Repo](https://github.com/apialerts/apialerts-rust) • [Crates](https://crates.io/crates/apialerts)
 
 ### Installation
 
