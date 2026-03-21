@@ -11,7 +11,7 @@ Effortless project notifications. Send once, deliver everywhere.
 
 ```toml
 [dependencies]
-apialerts = "2.0.0"
+apialerts = "1.1.0"
 ```
 
 ## Quick Start
