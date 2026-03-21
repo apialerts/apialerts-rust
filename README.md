@@ -44,12 +44,13 @@ async fn main() {
     // Fire-and-forget — never panics
     apialerts::send(Event::new("Deploy complete")).await;
 
-    // Or get the result back — never returns an error, check result.success
-    let result = apialerts::send_async(Event::new("Deploy complete")).await;
-    if result.success {
-        println!("Sent to {} ({})", result.workspace.unwrap(), result.channel.unwrap());
-    } else {
-        eprintln!("Error: {}", result.error.unwrap());
+    // Or get the result back
+    match apialerts::send_async(Event::new("Deploy complete")).await {
+        Ok(result) => {
+            println!("Sent to {} ({})", result.workspace, result.channel);
+            for w in &result.warnings { println!("Warning: {}", w); }
+        }
+        Err(e) => eprintln!("Error: {}", e),
     }
 }
 ```
@@ -58,15 +59,15 @@ async fn main() {
 
 Only `message` is required. All other fields are optional.
 
-| Field       | Type                 | Required | Description                      |
-|-------------|----------------------|----------|----------------------------------|
-| `new(s)`    | `&str`               | Yes      | Main notification message        |
-| `.channel()`| `&str`               | No       | Target channel name              |
-| `.event()`  | `&str`               | No       | Event key for routing            |
-| `.title()`  | `&str`               | No       | Short title                      |
-| `.tags()`   | `Vec<&str>`          | No       | Categorisation tags              |
-| `.link()`   | `&str`               | No       | URL attached to the notification |
-| `.data()`   | `serde_json::Value`  | No       | Arbitrary key-value metadata     |
+| Field        | Type                 | Required | Description                      |
+|--------------|----------------------|----------|----------------------------------|
+| `new(s)`     | `&str`               | Yes      | Main notification message        |
+| `.channel()` | `&str`               | No       | Target channel name              |
+| `.event()`   | `&str`               | No       | Event key for routing            |
+| `.title()`   | `&str`               | No       | Short title                      |
+| `.tags()`    | `Vec<&str>`          | No       | Categorisation tags              |
+| `.link()`    | `&str`               | No       | URL attached to the notification |
+| `.data()`    | `serde_json::Value`  | No       | Arbitrary key-value metadata     |
 
 ```rust
 use apialerts::Event;
@@ -92,9 +93,9 @@ use apialerts::{ApiAlertsClient, Event};
 async fn main() {
     let client = ApiAlertsClient::new("your-api-key").debug(true);
 
-    let result = client.send_async(Event::new("Deploy complete")).await;
-    if result.success {
-        println!("Sent to {} ({})", result.workspace.unwrap(), result.channel.unwrap());
+    match client.send_async(Event::new("Deploy complete")).await {
+        Ok(result) => println!("Sent to {} ({})", result.workspace, result.channel),
+        Err(e)     => eprintln!("Error: {}", e),
     }
 }
 ```

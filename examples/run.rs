@@ -25,66 +25,51 @@ async fn main() {
     let link = "https://github.com/apialerts/apialerts-rust/actions";
 
     if is_build {
-        let result = send_async(
+        match send_async(
             Event::new("Rust SDK - PR build success")
                 .channel("developer")
                 .event("ci.build")
                 .title("Build Passed")
                 .tags(vec!["CI/CD", "Rust", "Build"])
                 .link(link),
-        )
-        .await;
-        if result.success {
-            println!("✓ Sent to {} ({})", result.workspace.as_deref().unwrap_or(""), result.channel.as_deref().unwrap_or(""));
-        } else {
-            eprintln!("Error: {}", result.error.as_deref().unwrap_or("unknown"));
-            std::process::exit(1);
+        ).await {
+            Ok(r)  => println!("✓ Sent to {} ({})", r.workspace, r.channel),
+            Err(e) => { eprintln!("Error: {}", e); std::process::exit(1); }
         }
 
     } else if is_release {
-        let result = send_async(
+        match send_async(
             Event::new("Rust SDK - Build for publish success")
                 .channel("developer")
                 .event("ci.release")
                 .title("Release Build Passed")
                 .tags(vec!["CI/CD", "Rust", "Build"])
                 .link(link),
-        )
-        .await;
-        if result.success {
-            println!("✓ Sent to {} ({})", result.workspace.as_deref().unwrap_or(""), result.channel.as_deref().unwrap_or(""));
-        } else {
-            eprintln!("Error: {}", result.error.as_deref().unwrap_or("unknown"));
-            std::process::exit(1);
+        ).await {
+            Ok(r)  => println!("✓ Sent to {} ({})", r.workspace, r.channel),
+            Err(e) => { eprintln!("Error: {}", e); std::process::exit(1); }
         }
 
     } else if is_publish {
-        let result = send_async(
+        match send_async(
             Event::new("Rust SDK - crates.io publish success")
                 .channel("releases")
                 .event("ci.publish")
                 .title("Published")
                 .tags(vec!["CI/CD", "Rust", "Deploy"])
                 .link(link),
-        )
-        .await;
-        if result.success {
-            println!("✓ Sent to {} ({})", result.workspace.as_deref().unwrap_or(""), result.channel.as_deref().unwrap_or(""));
-        } else {
-            eprintln!("Error: {}", result.error.as_deref().unwrap_or("unknown"));
-            std::process::exit(1);
+        ).await {
+            Ok(r)  => println!("✓ Sent to {} ({})", r.workspace, r.channel),
+            Err(e) => { eprintln!("Error: {}", e); std::process::exit(1); }
         }
 
     } else if is_integration_tests {
-        let result = send_async(Event::new("Rust SDK - minimal").channel(channel)).await;
-        if result.success {
-            println!("✓ sent to {} ({})", result.workspace.as_deref().unwrap_or(""), result.channel.as_deref().unwrap_or(""));
-        } else {
-            eprintln!("Error (minimal): {}", result.error.as_deref().unwrap_or("unknown"));
-            std::process::exit(1);
+        match send_async(Event::new("Rust SDK - minimal").channel(channel)).await {
+            Ok(r)  => println!("✓ sent to {} ({})", r.workspace, r.channel),
+            Err(e) => { eprintln!("Error (minimal): {}", e); std::process::exit(1); }
         }
 
-        let result = send_async(
+        match send_async(
             Event::new("Rust SDK - full")
                 .channel(channel)
                 .event("sdk.test")
@@ -92,17 +77,14 @@ async fn main() {
                 .tags(vec!["CI/CD", "Rust"])
                 .link(link)
                 .data(serde_json::json!({ "version": "2.0.0" })),
-        )
-        .await;
-        if result.success {
-            println!("✓ sent to {} ({})", result.workspace.as_deref().unwrap_or(""), result.channel.as_deref().unwrap_or(""));
-            for w in &result.warnings {
-                println!("! Warning: {}", w);
+        ).await {
+            Ok(r) => {
+                println!("✓ sent to {} ({})", r.workspace, r.channel);
+                for w in &r.warnings { println!("! Warning: {}", w); }
             }
-        } else {
-            eprintln!("Error (full): {}", result.error.as_deref().unwrap_or("unknown"));
-            std::process::exit(1);
+            Err(e) => { eprintln!("Error (full): {}", e); std::process::exit(1); }
         }
+
     } else {
         eprintln!("Error: pass --build, --release, --publish, or --integration-tests");
         std::process::exit(1);

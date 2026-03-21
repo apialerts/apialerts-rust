@@ -1,7 +1,7 @@
 mod client;
 mod event;
 
-pub use client::{ApiAlertsClient, SendResult};
+pub use client::{ApiAlertsClient, ApiAlertsError, SendResult};
 pub use event::Event;
 
 use std::sync::OnceLock;
@@ -38,10 +38,6 @@ pub fn configure_with_overrides(
 
 /// Send an event — fire-and-forget. Never panics.
 ///
-/// Critical errors (not configured, missing key, empty message) are always
-/// logged to stderr. HTTP errors and successes are only logged when debug is
-/// enabled.
-///
 /// # Example
 ///
 /// ```rust,no_run
@@ -58,8 +54,7 @@ pub async fn send(event: Event) {
     }
 }
 
-/// Send an event and return the result. Never returns an error — check
-/// `result.success` instead.
+/// Send an event and return the result.
 ///
 /// # Example
 ///
@@ -67,17 +62,15 @@ pub async fn send(event: Event) {
 /// # #[tokio::main]
 /// # async fn main() {
 /// apialerts::configure("your-api-key");
-/// let result = apialerts::send_async(apialerts::Event::new("Deploy complete")).await;
-/// if result.success {
-///     println!("Sent to {} ({})", result.workspace.unwrap(), result.channel.unwrap());
-/// } else {
-///     eprintln!("Error: {}", result.error.unwrap());
+/// match apialerts::send_async(apialerts::Event::new("Deploy complete")).await {
+///     Ok(result) => println!("Sent to {} ({})", result.workspace, result.channel),
+///     Err(e)     => eprintln!("Error: {}", e),
 /// }
 /// # }
 /// ```
-pub async fn send_async(event: Event) -> SendResult {
+pub async fn send_async(event: Event) -> Result<SendResult, ApiAlertsError> {
     match GLOBAL_CLIENT.get() {
         Some(client) => client.send_async(event).await,
-        None => SendResult::from_error("client not configured"),
+        None => Err(ApiAlertsError::NotConfigured),
     }
 }

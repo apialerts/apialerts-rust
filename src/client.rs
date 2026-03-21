@@ -1,3 +1,4 @@
+use std::fmt;
 use std::time::Duration;
 
 use reqwest::Client;
@@ -10,43 +11,39 @@ const INTEGRATION_NAME: &str = "rust";
 const INTEGRATION_VERSION: &str = "2.0.0";
 const DEFAULT_TIMEOUT_SECS: u64 = 30;
 
-/// The result of an event delivery attempt.
-///
-/// `send_async` always returns this — check `success` rather than unwrapping.
+/// The result of a successful event delivery.
 #[derive(Debug, Clone)]
 pub struct SendResult {
-    pub success: bool,
-    pub workspace: Option<String>,
-    pub channel: Option<String>,
+    pub workspace: String,
+    pub channel: String,
     pub warnings: Vec<String>,
-    pub error: Option<String>,
 }
 
-impl SendResult {
-    fn ok(workspace: String, channel: String, warnings: Vec<String>) -> Self {
-        Self {
-            success: true,
-            workspace: Some(workspace),
-            channel: Some(channel),
-            warnings,
-            error: None,
-        }
-    }
+/// Errors that can be returned by the API Alerts SDK.
+#[derive(Debug)]
+pub enum ApiAlertsError {
+    NotConfigured,
+    ApiKeyMissing,
+    MessageRequired,
+    NetworkError(String),
+    HttpError(u16, String),
+    InvalidResponse,
+}
 
-    pub(crate) fn from_error(message: impl Into<String>) -> Self {
-        Self::err(message)
-    }
-
-    fn err(message: impl Into<String>) -> Self {
-        Self {
-            success: false,
-            workspace: None,
-            channel: None,
-            warnings: Vec::new(),
-            error: Some(message.into()),
+impl fmt::Display for ApiAlertsError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NotConfigured       => write!(f, "client not configured"),
+            Self::ApiKeyMissing       => write!(f, "api key is missing"),
+            Self::MessageRequired     => write!(f, "message is required"),
+            Self::NetworkError(msg)   => write!(f, "{}", msg),
+            Self::HttpError(_, msg)   => write!(f, "{}", msg),
+            Self::InvalidResponse     => write!(f, "invalid response from server"),
         }
     }
 }
+
+impl std::error::Error for ApiAlertsError {}
 
 #[derive(Deserialize)]
 struct ApiResponse {
@@ -112,10 +109,6 @@ impl ApiAlertsClient {
     }
 
     /// Send an event — fire-and-forget. Never panics.
-    ///
-    /// Critical errors (not configured, missing key, empty message) are always
-    /// logged to stderr. HTTP errors and successes are only logged when debug
-    /// is enabled.
     pub async fn send(&self, event: Event) {
         // Critical checks — always log regardless of debug setting
         if self.api_key.is_empty() {
@@ -130,46 +123,41 @@ impl ApiAlertsClient {
         let result = self.post(&self.api_key, event).await;
 
         if self.debug {
-            if !result.success {
-                if let Some(ref msg) = result.error {
-                    eprintln!("x (apialerts.com) Error: {}", msg);
+            match result {
+                Ok(r) => {
+                    eprintln!("✓ (apialerts.com) Alert sent to {} ({})", r.workspace, r.channel);
+                    for w in &r.warnings {
+                        eprintln!("! (apialerts.com) Warning: {}", w);
+                    }
                 }
-            } else {
-                let workspace = result.workspace.as_deref().unwrap_or("");
-                let channel = result.channel.as_deref().unwrap_or("");
-                eprintln!("✓ (apialerts.com) Alert sent to {} ({})", workspace, channel);
-                for w in &result.warnings {
-                    eprintln!("! (apialerts.com) Warning: {}", w);
-                }
+                Err(e) => eprintln!("x (apialerts.com) Error: {}", e),
             }
         }
     }
 
-    /// Send an event and return the result. Never returns an error — check
-    /// `result.success` instead.
-    pub async fn send_async(&self, event: Event) -> SendResult {
+    /// Send an event and return the result.
+    pub async fn send_async(&self, event: Event) -> Result<SendResult, ApiAlertsError> {
         self.post(&self.api_key, event).await
     }
 
     /// Send an event using an explicit API key, bypassing the configured one.
-    /// Never returns an error — check `result.success` instead.
     pub async fn send_with_key(
         &self,
         api_key: impl AsRef<str>,
         event: Event,
-    ) -> SendResult {
+    ) -> Result<SendResult, ApiAlertsError> {
         self.post(api_key.as_ref(), event).await
     }
 
-    async fn post(&self, api_key: &str, event: Event) -> SendResult {
+    async fn post(&self, api_key: &str, event: Event) -> Result<SendResult, ApiAlertsError> {
         if api_key.is_empty() {
-            return SendResult::err("api key is missing");
+            return Err(ApiAlertsError::ApiKeyMissing);
         }
         if event.message.is_empty() {
-            return SendResult::err("message is required");
+            return Err(ApiAlertsError::MessageRequired);
         }
 
-        let response = match self
+        let response = self
             .http_client
             .post(&self.base_url)
             .header("Authorization", format!("Bearer {}", api_key))
@@ -179,23 +167,23 @@ impl ApiAlertsClient {
             .json(&event)
             .send()
             .await
-        {
-            Ok(r) => r,
-            Err(e) => return SendResult::err(e.to_string()),
-        };
+            .map_err(|e| ApiAlertsError::NetworkError(e.to_string()))?;
 
         match response.status().as_u16() {
-            200 => {
-                match response.json::<ApiResponse>().await {
-                    Ok(body) => SendResult::ok(body.workspace, body.channel, body.warnings),
-                    Err(_) => SendResult::err("invalid response from server"),
-                }
-            }
-            400 => SendResult::err("bad request"),
-            401 => SendResult::err("unauthorized — check your api key"),
-            403 => SendResult::err("forbidden"),
-            429 => SendResult::err("rate limit exceeded"),
-            code => SendResult::err(format!("unexpected status: {}", code)),
+            200 => response
+                .json::<ApiResponse>()
+                .await
+                .map(|body| SendResult {
+                    workspace: body.workspace,
+                    channel: body.channel,
+                    warnings: body.warnings,
+                })
+                .map_err(|_| ApiAlertsError::InvalidResponse),
+            400 => Err(ApiAlertsError::HttpError(400, "bad request".into())),
+            401 => Err(ApiAlertsError::HttpError(401, "unauthorized — check your api key".into())),
+            403 => Err(ApiAlertsError::HttpError(403, "forbidden".into())),
+            429 => Err(ApiAlertsError::HttpError(429, "rate limit exceeded".into())),
+            code => Err(ApiAlertsError::HttpError(code, format!("unexpected status: {}", code))),
         }
     }
 }
