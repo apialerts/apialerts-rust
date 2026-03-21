@@ -1,89 +1,93 @@
-use serde_json::{json, Value};
+use serde::Serialize;
 
-pub struct ApiAlertsEvent {
-    pub channel: String,
+/// An event to send to the API Alerts platform.
+///
+/// Only `message` is required. All other fields are optional and will be
+/// omitted from the JSON payload if not set — equivalent to Go's `omitempty`.
+///
+/// # Example
+///
+/// ```rust
+/// use apialerts::Event;
+///
+/// // Minimal
+/// let event = Event::new("Deploy complete");
+///
+/// // Full
+/// let event = Event::new("Deploy complete")
+///     .channel("releases")
+///     .event("ci.deploy")
+///     .title("Deployed")
+///     .tags(vec!["CI/CD", "Rust"])
+///     .link("https://github.com/apialerts/apialerts-rust/actions")
+///     .data(serde_json::json!({ "version": "2.0.0" }));
+/// ```
+#[derive(Debug, Clone, Serialize)]
+pub struct Event {
     pub message: String,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub channel: Option<String>,
+
+    // Field is named event_key internally to avoid conflict with the builder
+    // method name. Serializes as "event" in JSON.
+    #[serde(rename = "event", skip_serializing_if = "Option::is_none")]
+    pub event_key: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<String>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub link: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data: Option<serde_json::Value>,
 }
 
-impl ApiAlertsEvent {
-    pub fn new(channel: String, message: String) -> Self {
-        ApiAlertsEvent {
-            channel,
-            message,
+impl Event {
+    /// Create a new event with only a message. All other fields default to `None`.
+    pub fn new(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            channel: None,
+            event_key: None,
+            title: None,
             tags: None,
             link: None,
+            data: None,
         }
     }
 
-    pub fn with_tags(mut self, tags: Vec<String>) -> Self {
-        self.tags = Some(tags);
+    pub fn channel(mut self, channel: impl Into<String>) -> Self {
+        self.channel = Some(channel.into());
         self
     }
 
-    pub fn with_link(mut self, link: String) -> Self {
-        self.link = Some(link);
+    pub fn event(mut self, event: impl Into<String>) -> Self {
+        self.event_key = Some(event.into());
         self
     }
 
-    pub fn convert_to_json(self) -> Value {
-        json!({
-            "channel": self.channel,
-            "message": self.message,
-            "link": self.link,
-            "tags": self.tags,
-        })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use core::panic;
-
-    use super::*;
-
-    #[test]
-    fn test_base_event_build() {
-        let event = ApiAlertsEvent::new("channel".to_string(), "message".to_string());
-        assert_eq!(event.channel, "channel");
-        assert_eq!(event.message, "message");
-        assert!(event.tags.is_none());
-        assert!(event.link.is_none());
+    pub fn title(mut self, title: impl Into<String>) -> Self {
+        self.title = Some(title.into());
+        self
     }
 
-    #[test]
-    fn test_event_with_tags_and_link() {
-        let event = ApiAlertsEvent::new("channel".to_string(), "message".to_string())
-            .with_link("http://waffles.yeet".to_string())
-            .with_tags(vec!["tag1".to_string(), "tag2".to_string()]);
-        assert_eq!(event.channel, "channel");
-        assert_eq!(event.message, "message");
-        assert_eq!(
-            event.tags.unwrap(),
-            vec!["tag1".to_string(), "tag2".to_string()]
-        );
-        assert_eq!(event.link.unwrap(), "http://waffles.yeet");
+    pub fn tags(mut self, tags: Vec<impl Into<String>>) -> Self {
+        self.tags = Some(tags.into_iter().map(|t| t.into()).collect());
+        self
     }
 
-    #[test]
-    fn test_convert_to_json() {
-        let event = ApiAlertsEvent::new("channel".to_string(), "message".to_string())
-            .with_link("http://waffles.yeet".to_string())
-            .with_tags(vec!["tag1".to_string(), "tag2".to_string()]);
-        let json = event.convert_to_json();
-        assert_eq!(json["channel"], "channel");
-        assert_eq!(json["message"], "message");
-        assert_eq!(json["link"], "http://waffles.yeet");
+    pub fn link(mut self, link: impl Into<String>) -> Self {
+        self.link = Some(link.into());
+        self
+    }
 
-        if let Some(tags) = json["tags"].as_array() {
-            let tags_vec: Vec<String> = tags
-                .iter()
-                .map(|v| v.as_str().unwrap().to_string())
-                .collect();
-            assert_eq!(tags_vec, vec!["tag1".to_string(), "tag2".to_string()])
-        } else {
-            panic!("Tags should be an array");
-        }
+    pub fn data(mut self, data: serde_json::Value) -> Self {
+        self.data = Some(data);
+        self
     }
 }
