@@ -5,7 +5,11 @@ async fn main() {
     let args: Vec<String> = std::env::args().collect();
     let _flag = args.get(1).map(|s| s.as_str());
 
-    let api_key = std::env::var("APIALERTS_API_KEY").expect("APIALERTS_API_KEY not set");
+    let api_key = std::env::var("APIALERTS_API_KEY").unwrap_or_default();
+    if api_key.is_empty() {
+        eprintln!("Error: APIALERTS_API_KEY environment variable is not set");
+        std::process::exit(1);
+    }
     configure(api_key);
 
     // Minimal send — message only
@@ -18,7 +22,7 @@ async fn main() {
         );
     } else {
         eprintln!("Error (minimal): {}", result.error.as_deref().unwrap_or("unknown"));
-        return;
+        std::process::exit(1);
     }
 
     // Full send — all fields
@@ -44,5 +48,6 @@ async fn main() {
         }
     } else {
         eprintln!("Error (full): {}", result.error.as_deref().unwrap_or("unknown"));
+        std::process::exit(1);
     }
 }
