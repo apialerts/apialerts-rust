@@ -17,35 +17,32 @@ apialerts = "1.1.0"
 ## Quick Start
 
 ```rust
-use apialerts::Event;
+use apialerts::{ApiAlertsClient, Event};
 
 #[tokio::main]
 async fn main() {
-    apialerts::configure("your-api-key");
-
-    apialerts::send(Event::new("Deploy complete")).await;
+    let client = ApiAlertsClient::new("your-api-key");
+    client.send(Event::new("Deploy complete")).await;
 }
 ```
 
 ## Usage
 
-### Global singleton (recommended)
-
-Call `configure` once at startup, then use the top-level `send` / `send_async`
-functions anywhere in your app.
+The Rust SDK is instance-based - construct `ApiAlertsClient` directly and manage
+its lifetime yourself. This is more idiomatic for Rust than a global singleton.
 
 ```rust
-use apialerts::Event;
+use apialerts::{ApiAlertsClient, Event};
 
 #[tokio::main]
 async fn main() {
-    apialerts::configure("your-api-key");
+    let client = ApiAlertsClient::new("your-api-key");
 
-    // Fire-and-forget — never panics
-    apialerts::send(Event::new("Deploy complete")).await;
+    // Fire-and-forget - never panics
+    client.send(Event::new("Deploy complete")).await;
 
     // Or get the result back
-    match apialerts::send_async(Event::new("Deploy complete")).await {
+    match client.send_async(Event::new("Deploy complete")).await {
         Ok(result) => {
             println!("Sent to {} ({})", result.workspace, result.channel);
             for w in &result.warnings { println!("Warning: {}", w); }
@@ -53,6 +50,23 @@ async fn main() {
         Err(e) => eprintln!("Error: {}", e),
     }
 }
+```
+
+### Debug Logging
+
+```rust
+let mut client = ApiAlertsClient::new("your-api-key");
+client.set_debug(true); // logs successful sends and errors to stderr
+```
+
+### Overrides
+
+Use `set_overrides` to change the integration name, version, or base URL
+(useful for official integrations and testing).
+
+```rust
+let mut client = ApiAlertsClient::new("your-api-key");
+client.set_overrides("my-integration", "1.0.0", "https://api.apialerts.com");
 ```
 
 ### Event Fields
@@ -66,7 +80,7 @@ Only `message` is required. All other fields are optional.
 | `.event()`   | `&str`               | No       | Event key for routing            |
 | `.title()`   | `&str`               | No       | Short title                      |
 | `.tags()`    | `Vec<&str>`          | No       | Categorisation tags              |
-| `.link()`    | `&str`               | No       | URL attached to the notification |
+| `.link()`    | `&str`               | No       | URL associated with the event (deeplink + CTA) |
 | `.data()`    | `serde_json::Value`  | No       | Arbitrary key-value metadata     |
 
 ```rust
@@ -79,25 +93,6 @@ let event = Event::new("Deploy complete")
     .tags(vec!["CI/CD", "Rust"])
     .link("https://github.com/apialerts/apialerts-rust/actions")
     .data(serde_json::json!({ "version": "2.0.0" }));
-```
-
-### Instance-based client
-
-Use `ApiAlertsClient` directly when you need multiple clients or want to manage
-the lifecycle yourself.
-
-```rust
-use apialerts::{ApiAlertsClient, Event};
-
-#[tokio::main]
-async fn main() {
-    let client = ApiAlertsClient::new("your-api-key").debug(true);
-
-    match client.send_async(Event::new("Deploy complete")).await {
-        Ok(result) => println!("Sent to {} ({})", result.workspace, result.channel),
-        Err(e)     => eprintln!("Error: {}", e),
-    }
-}
 ```
 
 ## Links

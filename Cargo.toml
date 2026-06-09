@@ -1,7 +1,8 @@
 [package]
 name = "apialerts"
 version = "1.1.0"
-edition = "2021"
+edition = "2024"
+rust-version = "1.85"
 authors = ["API Alerts <support@apialerts.com>"]
 description = "Rust client for the API Alerts notification platform"
 license = "MIT"
