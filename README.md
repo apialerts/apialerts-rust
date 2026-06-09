@@ -12,6 +12,8 @@ Effortless project notifications. Send once, deliver everywhere.
 ```toml
 [dependencies]
 apialerts = "1.1.0"
+tokio = { version = "1", features = ["full"] }
+serde_json = "1"
 ```
 
 ## Quick Start
