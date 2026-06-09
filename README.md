@@ -1,79 +1,102 @@
 # API Alerts • Rust Client
 
-[GitHub Repo](https://github.com/apialerts/apialerts-rust) • [Crates](https://crates.io/crates/apialerts)
+[![Crates.io](https://img.shields.io/crates/v/apialerts)](https://crates.io/crates/apialerts)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-### Installation
+[Crates.io](https://crates.io/crates/apialerts) • [GitHub](https://github.com/apialerts/apialerts-rust) • [API Alerts](https://apialerts.com)
 
-Add the following to your `Cargo.toml`:
+Effortless project notifications. Send once, deliver everywhere.
+
+## Installation
 
 ```toml
 [dependencies]
-apialerts = "<latest-version>"
+apialerts = "1.1.0"
 ```
 
-### Usage
+## Quick Start
 
 ```rust
-use apialerts::{event::ApiAlertsEvent, ApiAlertsClient};
+use apialerts::{ApiAlertsClient, Event};
 
 #[tokio::main]
 async fn main() {
-    let client = ApiAlertsClient::new("{API-KEY}".to_string());
+    let client = ApiAlertsClient::new("your-api-key");
+    client.send(Event::new("Deploy complete")).await;
+}
+```
 
-    let event = ApiAlertsEvent::new(
-        "rust channel".to_string(),
-        "I've caught the rust bug".to_string(),
-    );
+## Usage
 
-    // Blocking - using futures
-    match client.send(event) {
-        Ok(_) => {}
-        Err(e) => println!("Error sending alert: {:?}", e),
+The Rust SDK is instance-based - construct `ApiAlertsClient` directly and manage
+its lifetime yourself. This is more idiomatic for Rust than a global singleton.
+
+```rust
+use apialerts::{ApiAlertsClient, Event};
+
+#[tokio::main]
+async fn main() {
+    let client = ApiAlertsClient::new("your-api-key");
+
+    // Fire-and-forget - never panics
+    client.send(Event::new("Deploy complete")).await;
+
+    // Or get the result back
+    match client.send_async(Event::new("Deploy complete")).await {
+        Ok(result) => {
+            println!("Sent to {} ({})", result.workspace, result.channel);
+            for w in &result.warnings { println!("Warning: {}", w); }
+        }
+        Err(e) => eprintln!("Error: {}", e),
     }
-
-    // OR
-
-    // Async - using async-std
-    match client.send_async(event).await {
-        Ok(_) => {}
-        Err(e) => println!("Error sending alert: {:?}", e),
-    }
 }
 ```
 
-You can also use the `update_config` and `update_api_key` methods to update the configuration of the client.
-
-ApiAlertsConfig is exposed as a struct, so you can easily create a new config with the default values.
+### Debug Logging
 
 ```rust
-use apialerts::{event::ApiAlertsEvent, ApiAlertsClient};
-
-#[tokio::main]
-async fn main() {
-    let client = ApiAlertsClient::new("{API-KEY}".to_string())
-        .update_config(ApiAlertsConfig::new_default_config())
-        .update_api_key("{API-KEY}".to_string());
-
-    //...
-}
+let mut client = ApiAlertsClient::new("your-api-key");
+client.set_debug(true); // logs successful sends and errors to stderr
 ```
 
-You can also set the tags and links on the alert event.
+### Overrides
+
+Use `set_overrides` to change the integration name, version, or base URL
+(useful for official integrations and testing).
 
 ```rust
-use apialerts::{event::ApiAlertsEvent, ApiAlertsClient};
-
-#[tokio::main]
-async fn main() {
-    //...
-
-    let event = ApiAlertsEvent::new(
-        "rust channel".to_string(),
-        "I've caught the rust bug".to_string(),
-    )
-    .set_tags(vec!["rust", "bug".to_string()])
-    .set_links(vec!["https://github.com/apialerts/apialerts-rust".to_string()]);
-
-    //...
-}
+let mut client = ApiAlertsClient::new("your-api-key");
+client.set_overrides("my-integration", "1.0.0", "https://api.apialerts.com");
 ```
+
+### Event Fields
+
+Only `message` is required. All other fields are optional.
+
+| Field        | Type                 | Required | Description                      |
+|--------------|----------------------|----------|----------------------------------|
+| `new(s)`     | `&str`               | Yes      | Main notification message        |
+| `.channel()` | `&str`               | No       | Target channel name              |
+| `.event()`   | `&str`               | No       | Event key for routing            |
+| `.title()`   | `&str`               | No       | Short title                      |
+| `.tags()`    | `Vec<&str>`          | No       | Categorisation tags              |
+| `.link()`    | `&str`               | No       | URL associated with the event (deeplink + CTA) |
+| `.data()`    | `serde_json::Value`  | No       | Arbitrary key-value metadata     |
+
+```rust
+use apialerts::Event;
+
+let event = Event::new("Deploy complete")
+    .channel("releases")
+    .event("ci.deploy")
+    .title("Deployed")
+    .tags(vec!["CI/CD", "Rust"])
+    .link("https://github.com/apialerts/apialerts-rust/actions")
+    .data(serde_json::json!({ "version": "2.0.0" }));
+```
+
+## Links
+
+- [Documentation](https://apialerts.com/docs)
+- [Sign up](https://apialerts.com)
+- [GitHub Issues](https://github.com/apialerts/apialerts-rust/issues)
